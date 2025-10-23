@@ -1,0 +1,71 @@
+{% extends "base.html" %}
+
+{% block title %}Вход - SMM Assistant{% endblock %}
+
+{% block content %}
+<div class="container">
+    <div class="row justify-content-center">
+        <div class="col-md-6 col-lg-5">
+            <div class="card mt-5">
+                <div class="card-body p-5">
+                    <h2 class="text-center mb-4">Вход в систему</h2>
+                    <form id="loginForm">
+                        <div class="mb-3">
+                            <label for="username" class="form-label">Имя пользователя</label>
+                            <input type="text" class="form-control" id="username" name="username" required>
+                        </div>
+                        <div class="mb-3">
+                            <label for="password" class="form-label">Пароль</label>
+                            <input type="password" class="form-control" id="password" name="password" required>
+                        </div>
+                        <div class="d-grid">
+                            <button type="submit" class="btn btn-primary" id="loginBtn">Войти</button>
+                        </div>
+                    </form>
+                    <div class="text-center mt-3">
+                        <p>Нет аккаунта? <a href="{{ url_for('auth.register') }}">Зарегистрироваться</a></p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.getElementById('loginForm').addEventListener('submit', async function(e) {
+    e.preventDefault();
+    
+    const formData = new FormData(this);
+    const data = Object.fromEntries(formData);
+    
+    const loginBtn = document.getElementById('loginBtn');
+    loginBtn.disabled = true;
+    loginBtn.textContent = 'Входим...';
+    
+    try {
+        const response = await fetch('/auth/login', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(data)
+        });
+        
+        const result = await response.json();
+        
+        if (result.success) {
+            window.location.href = result.redirect;
+        } else {
+            showAlert(result.error, 'danger');
+        }
+    } catch (error) {
+        showAlert('Ошибка при входе', 'danger');
+    } finally {
+        loginBtn.disabled = false;
+        loginBtn.textContent = 'Войти';
+    }
+});
+</script>
+{% endblock %}

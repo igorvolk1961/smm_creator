@@ -1,0 +1,162 @@
+{% extends "base.html" %}
+
+{% block title %}Генератор контента - SMM Assistant{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
+        <h1 class="h2">Генератор контента</h1>
+    </div>
+
+    <div class="row">
+        <div class="col-lg-6">
+            <div class="card shadow mb-4">
+                <div class="card-header py-3">
+                    <h6 class="m-0 font-weight-bold text-primary">Параметры генерации</h6>
+                </div>
+                <div class="card-body">
+                    <form id="contentForm">
+                        <div class="mb-3">
+                            <label for="topic" class="form-label">Тема поста</label>
+                            <textarea class="form-control" id="topic" name="topic" rows="3" 
+                                      placeholder="Опишите тему для поста..." required></textarea>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label for="tone" class="form-label">Тон сообщения</label>
+                            <select class="form-select" id="tone" name="tone">
+                                <option value="позитивный и весёлый">Позитивный и весёлый</option>
+                                <option value="профессиональный">Профессиональный</option>
+                                <option value="дружелюбный">Дружелюбный</option>
+                                <option value="мотивирующий">Мотивирующий</option>
+                                <option value="информативный">Информативный</option>
+                                <option value="юмористический">Юмористический</option>
+                            </select>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label for="platform" class="form-label">Платформа</label>
+                            <select class="form-select" id="platform" name="platform">
+                                <option value="vk">ВКонтакте</option>
+                                <option value="instagram">Instagram</option>
+                                <option value="telegram">Telegram</option>
+                                <option value="facebook">Facebook</option>
+                            </select>
+                        </div>
+                        
+                        <div class="d-grid">
+                            <button type="submit" class="btn btn-primary" id="generateBtn">
+                                <i class="fas fa-magic me-2"></i>Сгенерировать контент
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-lg-6">
+            <div class="card shadow mb-4">
+                <div class="card-header py-3">
+                    <h6 class="m-0 font-weight-bold text-primary">Результат</h6>
+                </div>
+                <div class="card-body">
+                    <div id="result" style="display: none;">
+                        <div class="mb-3">
+                            <h6>📝 Текст поста:</h6>
+                            <div class="bg-light p-3 rounded" id="postContent"></div>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <h6>🖼️ Описание изображения:</h6>
+                            <div class="bg-light p-3 rounded" id="imageDescription"></div>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <h6>🖼️ Сгенерированное изображение:</h6>
+                            <div class="text-center">
+                                <img id="generatedImage" class="img-fluid rounded" style="max-height: 300px;">
+                            </div>
+                        </div>
+                        
+                        <div class="d-grid gap-2">
+                            <button class="btn btn-success" id="publishBtn">
+                                <i class="fas fa-paper-plane me-2"></i>Опубликовать
+                            </button>
+                            <button class="btn btn-outline-primary" id="scheduleBtn">
+                                <i class="fas fa-clock me-2"></i>Запланировать
+                            </button>
+                        </div>
+                    </div>
+                    
+                    <div id="loading" class="text-center" style="display: none;">
+                        <div class="spinner-border text-primary" role="status">
+                            <span class="visually-hidden">Загрузка...</span>
+                        </div>
+                        <p class="mt-2">Генерируем контент...</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.getElementById('contentForm').addEventListener('submit', async function(e) {
+    e.preventDefault();
+    
+    const formData = new FormData(this);
+    const data = Object.fromEntries(formData);
+    
+    const resultDiv = document.getElementById('result');
+    const loadingDiv = document.getElementById('loading');
+    const generateBtn = document.getElementById('generateBtn');
+    
+    // Показываем загрузку
+    resultDiv.style.display = 'none';
+    loadingDiv.style.display = 'block';
+    generateBtn.disabled = true;
+    generateBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>Генерируем...';
+    
+    try {
+        const response = await fetch('/smm/generate', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(data)
+        });
+        
+        const result = await response.json();
+        
+        if (result.success) {
+            document.getElementById('postContent').textContent = result.post_content;
+            document.getElementById('imageDescription').textContent = result.image_description;
+            document.getElementById('generatedImage').src = result.image_url;
+            
+            loadingDiv.style.display = 'none';
+            resultDiv.style.display = 'block';
+        } else {
+            loadingDiv.style.display = 'none';
+            showAlert(result.error || 'Ошибка при генерации', 'danger');
+        }
+    } catch (error) {
+        loadingDiv.style.display = 'none';
+        showAlert('Ошибка при генерации контента', 'danger');
+    } finally {
+        generateBtn.disabled = false;
+        generateBtn.innerHTML = '<i class="fas fa-magic me-2"></i>Сгенерировать контент';
+    }
+});
+
+// Обработчики для кнопок публикации
+document.getElementById('publishBtn').addEventListener('click', function() {
+    showAlert('Функция публикации будет добавлена в следующих версиях', 'info');
+});
+
+document.getElementById('scheduleBtn').addEventListener('click', function() {
+    showAlert('Функция планирования будет добавлена в следующих версиях', 'info');
+});
+</script>
+{% endblock %}

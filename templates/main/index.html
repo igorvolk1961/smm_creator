@@ -1,0 +1,27 @@
+{% extends "base.html" %}
+
+{% block title %}SMM Assistant - Главная{% endblock %}
+
+{% block content %}
+<div class="container">
+    <div class="row justify-content-center">
+        <div class="col-md-8 col-lg-6">
+            <div class="card mt-5">
+                <div class="card-body text-center p-5">
+                    <h1 class="display-4 mb-4">🎯 SMM Assistant</h1>
+                    <p class="lead mb-4">Ваш персональный помощник для создания контента в социальных сетях</p>
+                    
+                    <div class="d-grid gap-3">
+                        <a href="{{ url_for('auth.login') }}" class="btn btn-primary btn-lg">
+                            <i class="fas fa-sign-in-alt me-2"></i>Войти
+                        </a>
+                        <a href="{{ url_for('auth.register') }}" class="btn btn-outline-primary btn-lg">
+                            <i class="fas fa-user-plus me-2"></i>Регистрация
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

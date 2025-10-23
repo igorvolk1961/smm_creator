@@ -1,0 +1,119 @@
+{% extends "base.html" %}
+
+{% block title %}Профиль - SMM Assistant{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
+        <h1 class="h2">Профиль пользователя</h1>
+    </div>
+
+    <div class="row">
+        <div class="col-lg-8">
+            <div class="card shadow mb-4">
+                <div class="card-header py-3">
+                    <h6 class="m-0 font-weight-bold text-primary">Настройки VK API</h6>
+                </div>
+                <div class="card-body">
+                    <form id="profileForm">
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label for="vk_api_id" class="form-label">VK API ID</label>
+                                <input type="text" class="form-control" id="vk_api_id" name="vk_api_id" 
+                                       value="{{ user.vk_api_id or '' }}" placeholder="Введите VK API ID">
+                                <div class="form-text">Получите в настройках приложения VK</div>
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label for="vk_group_id" class="form-label">VK Group ID</label>
+                                <input type="text" class="form-control" id="vk_group_id" name="vk_group_id" 
+                                       value="{{ user.vk_group_id or '' }}" placeholder="Введите ID группы VK">
+                                <div class="form-text">ID группы для публикации постов</div>
+                            </div>
+                        </div>
+                        <div class="d-grid">
+                            <button type="submit" class="btn btn-primary" id="saveBtn">Сохранить настройки</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-lg-4">
+            <div class="card shadow mb-4">
+                <div class="card-header py-3">
+                    <h6 class="m-0 font-weight-bold text-primary">Информация о пользователе</h6>
+                </div>
+                <div class="card-body">
+                    <div class="text-center">
+                        <div class="mb-3">
+                            <i class="fas fa-user-circle fa-5x text-primary"></i>
+                        </div>
+                        <h5>{{ user.username }}</h5>
+                        <p class="text-muted">{{ user.email }}</p>
+                        <p class="text-muted">Зарегистрирован: {{ user.created_at.strftime('%d.%m.%Y') }}</p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card shadow mb-4">
+                <div class="card-header py-3">
+                    <h6 class="m-0 font-weight-bold text-primary">Статус интеграций</h6>
+                </div>
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center mb-2">
+                        <span>VK API</span>
+                        <span class="badge {% if user.vk_api_id %}bg-success{% else %}bg-warning{% endif %}">
+                            {% if user.vk_api_id %}Настроено{% else %}Не настроено{% endif %}
+                        </span>
+                    </div>
+                    <div class="d-flex justify-content-between align-items-center">
+                        <span>VK Group</span>
+                        <span class="badge {% if user.vk_group_id %}bg-success{% else %}bg-warning{% endif %}">
+                            {% if user.vk_group_id %}Настроено{% else %}Не настроено{% endif %}
+                        </span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.getElementById('profileForm').addEventListener('submit', async function(e) {
+    e.preventDefault();
+    
+    const formData = new FormData(this);
+    const data = Object.fromEntries(formData);
+    
+    const saveBtn = document.getElementById('saveBtn');
+    saveBtn.disabled = true;
+    saveBtn.textContent = 'Сохраняем...';
+    
+    try {
+        const response = await fetch('/smm/profile', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(data)
+        });
+        
+        const result = await response.json();
+        
+        if (result.success) {
+            showAlert(result.message, 'success');
+            setTimeout(() => location.reload(), 1000);
+        } else {
+            showAlert(result.error || 'Ошибка при сохранении', 'danger');
+        }
+    } catch (error) {
+        showAlert('Ошибка при сохранении настроек', 'danger');
+    } finally {
+        saveBtn.disabled = false;
+        saveBtn.textContent = 'Сохранить настройки';
+    }
+});
+</script>
+{% endblock %}
