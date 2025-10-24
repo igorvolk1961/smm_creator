@@ -81,7 +81,7 @@ if ('VKIDSDK' in window) {
     const VKID = window.VKIDSDK;
 
     VKID.Config.init({
-        app: {{ config.api_keys.vk_app_id }},
+        app: {{ config.API_CONFIG.api_keys.vk_app_id }},
         redirectUrl: '{{ config.cloudpub_url or "https://triply-dashing-tamandua.cloudpub.ru" }}/',
         responseMode: VKID.ConfigResponseMode.Callback,
         source: VKID.ConfigSource.LOWCODE,

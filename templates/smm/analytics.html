@@ -22,13 +22,30 @@
                             <label for="dateTo" class="form-label">По</label>
                             <input type="date" class="form-control" id="dateTo">
                         </div>
-                        <div class="col-md-3">
+                        <div class="col-md-2">
                             <label for="platform" class="form-label">Платформа</label>
                             <select class="form-select" id="platform">
-                                <option value="all">Все платформы</option>
                                 <option value="vk">ВКонтакте</option>
-                                <option value="instagram">Instagram</option>
-                                <option value="telegram">Telegram</option>
+                            </select>
+                        </div>
+                    <div class="col-md-2" id="vkGroupSelect" style="display: none;">
+                        <div class="alert alert-info">
+                            <i class="fas fa-info-circle me-2"></i>
+                            <small>Используется настроенное сообщество</small>
+                        </div>
+                    </div>
+                    <div class="col-md-2" id="vkPostSelect">
+                        <label for="postId" class="form-label">ID поста (опционально)</label>
+                        <input type="text" class="form-control" id="postId" placeholder="Например: 123">
+                        <div class="form-text">Для получения статистики конкретного поста</div>
+                    </div>
+                        <div class="col-md-2" id="vkStatsGroup">
+                            <label for="statsGroup" class="form-label">Тип статистики</label>
+                            <select class="form-select" id="statsGroup">
+                                <option value="">Все данные</option>
+                                <option value="visitors">Посетители</option>
+                                <option value="reach">Охват</option>
+                                <option value="activity">Активность</option>
                             </select>
                         </div>
                         <div class="col-md-3 d-flex align-items-end">
@@ -147,8 +164,175 @@
 
 {% block scripts %}
 <script>
-document.getElementById('applyFilters').addEventListener('click', function() {
-    showAlert('Фильтры применены (функция в разработке)', 'info');
+let vkGroups = [];
+
+// Загрузка групп при выборе VK
+document.getElementById('platform').addEventListener('change', function() {
+    const platform = this.value;
+    const vkGroupSelect = document.getElementById('vkGroupSelect');
+    const vkStatsGroup = document.getElementById('vkStatsGroup');
+    
+    // Всегда показываем фильтры VK, так как это единственная платформа
+    vkGroupSelect.style.display = 'block';
+    vkStatsGroup.style.display = 'block';
+    document.getElementById('vkPostSelect').style.display = 'block';
+    loadVKGroups();
 });
+
+// Загрузка групп VK (теперь не нужна, так как используется настроенное сообщество)
+async function loadVKGroups() {
+    // Функция оставлена для совместимости, но больше не используется
+    return;
+}
+
+// Обновление селекта групп VK (теперь не нужна, так как используется настроенное сообщество)
+function updateVKGroupSelect() {
+    // Функция оставлена для совместимости, но больше не используется
+    return;
+}
+
+// Применение фильтров
+document.getElementById('applyFilters').addEventListener('click', async function() {
+    const platform = document.getElementById('platform').value;
+    const dateFrom = document.getElementById('dateFrom').value;
+    const dateTo = document.getElementById('dateTo').value;
+    
+    // Загружаем только VK статистику
+    const statsGroup = document.getElementById('statsGroup').value;
+    const postId = document.getElementById('postId').value;
+    
+    if (postId) {
+        // Загружаем статистику конкретного поста
+        await loadVKPostStats(postId);
+    } else {
+        // Загружаем общую статистику сообщества
+        await loadVKStats(dateFrom, dateTo, statsGroup);
+    }
+});
+
+// Загрузка статистики конкретного поста VK
+async function loadVKPostStats(postId) {
+    try {
+        const response = await fetch(`/smm/vk/stats/${postId}`);
+        const result = await response.json();
+        
+        if (result.success) {
+            displayVKPostStats(result);
+        } else {
+            showAlert('Ошибка загрузки статистики поста: ' + result.error, 'danger');
+        }
+    } catch (error) {
+        showAlert('Ошибка загрузки статистики поста', 'danger');
+    }
+}
+
+// Загрузка статистики VK
+async function loadVKStats(dateFrom, dateTo, statsGroup) {
+    try {
+        const params = new URLSearchParams({
+            interval: 'day'
+        });
+        
+        if (dateFrom) params.append('date_from', dateFrom);
+        if (dateTo) params.append('date_to', dateTo);
+        if (statsGroup) params.append('stats_groups', statsGroup);
+        
+        const response = await fetch(`/smm/vk/group-stats?${params.toString()}`);
+        const result = await response.json();
+        
+        if (result.success) {
+            displayVKStats(result.stats);
+        } else {
+            showAlert('Ошибка загрузки статистики: ' + result.error, 'danger');
+        }
+    } catch (error) {
+        showAlert('Ошибка загрузки статистики', 'danger');
+    }
+}
+
+// Отображение статистики конкретного поста VK
+function displayVKPostStats(result) {
+    const statsContainer = document.getElementById('statsContainer');
+    
+    const html = `
+        <div class="row">
+            <div class="col-md-12">
+                <div class="card">
+                    <div class="card-header">
+                        <h6 class="m-0">Статистика поста #${result.post_id || 'N/A'}</h6>
+                    </div>
+                    <div class="card-body">
+                        <div class="row">
+                            <div class="col-md-3">
+                                <div class="text-center">
+                                    <h4 class="text-primary">${result.views || 0}</h4>
+                                    <small class="text-muted">Просмотры</small>
+                                </div>
+                            </div>
+                            <div class="col-md-3">
+                                <div class="text-center">
+                                    <h4 class="text-success">${result.likes || 0}</h4>
+                                    <small class="text-muted">Лайки</small>
+                                </div>
+                            </div>
+                            <div class="col-md-3">
+                                <div class="text-center">
+                                    <h4 class="text-info">${result.comments || 0}</h4>
+                                    <small class="text-muted">Комментарии</small>
+                                </div>
+                            </div>
+                            <div class="col-md-3">
+                                <div class="text-center">
+                                    <h4 class="text-warning">${result.reposts || 0}</h4>
+                                    <small class="text-muted">Репосты</small>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    `;
+    
+    statsContainer.innerHTML = html;
+    showAlert('Статистика поста загружена успешно!', 'success');
+}
+
+// Отображение статистики VK
+function displayVKStats(stats) {
+    // Обновляем основные метрики
+    if (stats.visitors) {
+        document.querySelector('.text-primary').parentElement.querySelector('.h5').textContent = stats.visitors.views || 0;
+    }
+    
+    if (stats.activity) {
+        document.querySelector('.text-success').parentElement.querySelector('.h5').textContent = stats.activity.likes || 0;
+        document.querySelector('.text-info').parentElement.querySelector('.h5').textContent = stats.activity.comments || 0;
+        document.querySelector('.text-warning').parentElement.querySelector('.h5').textContent = stats.activity.reposts || 0;
+    }
+    
+    showAlert('Статистика загружена успешно!', 'success');
+}
+
+// Функция показа уведомлений
+function showAlert(message, type) {
+    const alertDiv = document.createElement('div');
+    alertDiv.className = `alert alert-${type} alert-dismissible fade show`;
+    alertDiv.innerHTML = `
+        ${message}
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    `;
+    
+    // Вставляем уведомление в начало контейнера
+    const container = document.querySelector('.container-fluid');
+    container.insertBefore(alertDiv, container.firstChild);
+    
+    // Автоматически скрываем через 5 секунд
+    setTimeout(() => {
+        if (alertDiv.parentNode) {
+            alertDiv.remove();
+        }
+    }, 5000);
+}
 </script>
 {% endblock %}

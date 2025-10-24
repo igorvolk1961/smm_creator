@@ -38,9 +38,6 @@
                             <label for="platform" class="form-label">Платформа</label>
                             <select class="form-select" id="platform" name="platform">
                                 <option value="vk">ВКонтакте</option>
-                                <option value="instagram">Instagram</option>
-                                <option value="telegram">Telegram</option>
-                                <option value="facebook">Facebook</option>
                             </select>
                         </div>
                         
@@ -67,23 +64,40 @@
                         </div>
                         
                         <div class="mb-3">
-                            <h6>🖼️ Описание изображения:</h6>
-                            <div class="bg-light p-3 rounded" id="imageDescription"></div>
+                            <h6>🖼️ Промпт для изображения:</h6>
+                            <textarea class="form-control" id="imagePrompt" rows="3" 
+                                      placeholder="Промпт для генерации изображения..."></textarea>
+                            <div class="form-text">Вы можете отредактировать промпт перед генерацией изображения</div>
+                            <div class="form-text">
+                                <small class="text-muted" id="imageProviderInfo">
+                                    <i class="fas fa-info-circle me-1"></i>
+                                    Провайдер: <span id="currentProvider">Загрузка...</span>
+                                </small>
+                            </div>
                         </div>
                         
-                        <div class="mb-3">
+                        <div class="mb-3" id="imageSection" style="display: none;">
                             <h6>🖼️ Сгенерированное изображение:</h6>
                             <div class="text-center">
-                                <img id="generatedImage" class="img-fluid rounded" style="max-height: 300px;">
+                                <img id="generatedImage" class="img-fluid rounded" style="max-height: 300px; display: none;">
                             </div>
                         </div>
                         
                         <div class="d-grid gap-2">
-                            <button class="btn btn-success" id="publishBtn">
-                                <i class="fas fa-paper-plane me-2"></i>Опубликовать
+                            <button class="btn btn-primary" id="generateImageBtn">
+                                <i class="fas fa-image me-2"></i>Сгенерировать изображение
                             </button>
-                            <button class="btn btn-outline-primary" id="scheduleBtn">
-                                <i class="fas fa-clock me-2"></i>Запланировать
+                            <button class="btn btn-outline-primary" id="regenerateImageBtn" style="display: none;">
+                                <i class="fas fa-redo me-2"></i>Сгенерировать заново
+                            </button>
+                            <button class="btn btn-success" id="publishVkBtn">
+                                <i class="fab fa-vk me-2"></i>Опубликовать в VK
+                            </button>
+                            <button class="btn btn-outline-primary" id="scheduleVkBtn">
+                                <i class="fas fa-clock me-2"></i>Запланировать в VK
+                            </button>
+                            <button class="btn btn-outline-secondary" id="copyTextBtn">
+                                <i class="fas fa-copy me-2"></i>Копировать текст
                             </button>
                         </div>
                     </div>
@@ -132,8 +146,7 @@ document.getElementById('contentForm').addEventListener('submit', async function
         
         if (result.success) {
             document.getElementById('postContent').textContent = result.post_content;
-            document.getElementById('imageDescription').textContent = result.image_description;
-            document.getElementById('generatedImage').src = result.image_url;
+            document.getElementById('imagePrompt').value = result.image_description;
             
             loadingDiv.style.display = 'none';
             resultDiv.style.display = 'block';
@@ -151,12 +164,103 @@ document.getElementById('contentForm').addEventListener('submit', async function
 });
 
 // Обработчики для кнопок публикации
-document.getElementById('publishBtn').addEventListener('click', function() {
-    showAlert('Функция публикации будет добавлена в следующих версиях', 'info');
+document.getElementById('publishVkBtn').addEventListener('click', function() {
+    const postContent = document.getElementById('postContent').textContent;
+    if (!postContent.trim()) {
+        showAlert('Сначала сгенерируйте контент', 'warning');
+        return;
+    }
+    
+    // Открываем страницу публикации в VK с предзаполненным контентом
+    const params = new URLSearchParams({
+        message: postContent
+    });
+    window.open(`/smm/vk-publisher?${params.toString()}`, '_blank');
 });
 
-document.getElementById('scheduleBtn').addEventListener('click', function() {
-    showAlert('Функция планирования будет добавлена в следующих версиях', 'info');
+document.getElementById('scheduleVkBtn').addEventListener('click', function() {
+    const postContent = document.getElementById('postContent').textContent;
+    if (!postContent.trim()) {
+        showAlert('Сначала сгенерируйте контент', 'warning');
+        return;
+    }
+    
+    // Перенаправляем на страницу планирования с предзаполненным текстом
+    const params = new URLSearchParams({
+        message: postContent
+    });
+    window.location.href = `/smm/vk-publisher?${params.toString()}`;
+});
+
+document.getElementById('generateImageBtn').addEventListener('click', async function() {
+    const imagePrompt = document.getElementById('imagePrompt').value;
+    if (!imagePrompt.trim()) {
+        showAlert('Введите промпт для изображения', 'warning');
+        return;
+    }
+    
+    const generateBtn = document.getElementById('generateImageBtn');
+    generateBtn.disabled = true;
+    generateBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>Генерируем изображение...';
+    
+    try {
+        const response = await fetch('/smm/generate-image', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                description: imagePrompt
+            })
+        });
+        
+        const result = await response.json();
+        
+        if (result.success) {
+            document.getElementById('generatedImage').src = result.image_url;
+            document.getElementById('imageSection').style.display = 'block';
+            document.getElementById('generatedImage').style.display = 'block';
+            document.getElementById('regenerateImageBtn').style.display = 'block';
+            
+            // Обновляем информацию о провайдере
+            if (result.provider) {
+                const providerNames = {
+                    'webui': 'WEBUI (Stable Diffusion)',
+                    'gpt4o': 'GPT-4o + DALL-E',
+                    'dalle': 'DALL-E'
+                };
+                document.getElementById('currentProvider').textContent = providerNames[result.provider] || result.provider;
+            }
+            
+            showAlert('Изображение успешно сгенерировано!', 'success');
+        } else {
+            showAlert('Ошибка генерации изображения: ' + result.error, 'danger');
+        }
+    } catch (error) {
+        showAlert('Ошибка генерации изображения', 'danger');
+    } finally {
+        generateBtn.disabled = false;
+        generateBtn.innerHTML = '<i class="fas fa-image me-2"></i>Сгенерировать изображение';
+    }
+});
+
+// Обработчик для повторной генерации изображения
+document.getElementById('regenerateImageBtn').addEventListener('click', function() {
+    document.getElementById('generateImageBtn').click();
+});
+
+document.getElementById('copyTextBtn').addEventListener('click', function() {
+    const postContent = document.getElementById('postContent').textContent;
+    if (!postContent.trim()) {
+        showAlert('Сначала сгенерируйте контент', 'warning');
+        return;
+    }
+    
+    navigator.clipboard.writeText(postContent).then(() => {
+        showAlert('Текст скопирован в буфер обмена!', 'success');
+    }).catch(() => {
+        showAlert('Ошибка копирования текста', 'danger');
+    });
 });
 </script>
 {% endblock %}

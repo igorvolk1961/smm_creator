@@ -1,0 +1,303 @@
+{% extends "base.html" %}
+
+{% block title %}Публикация в VK - SMM Assistant{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
+        <h1 class="h2">Публикация в VK</h1>
+        <div class="btn-toolbar mb-2 mb-md-0">
+            <button class="btn btn-outline-info" id="checkTokenBtn">
+                <i class="fas fa-check-circle me-2"></i>Проверить токен
+            </button>
+        </div>
+    </div>
+
+    <div class="row">
+        <div class="col-lg-8">
+            <div class="card shadow mb-4">
+                <div class="card-header py-3">
+                    <h6 class="m-0 font-weight-bold text-primary">Создание поста</h6>
+                </div>
+                <div class="card-body">
+                    <form id="vkPostForm" enctype="multipart/form-data">
+                        <div class="mb-3">
+                            <div class="alert alert-info">
+                                <i class="fas fa-info-circle me-2"></i>
+                                Публикация будет выполнена в настроенное сообщество
+                            </div>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label for="postMessage" class="form-label">Текст поста</label>
+                            <textarea class="form-control" id="postMessage" name="message" rows="6" 
+                                      placeholder="Введите текст поста..." required></textarea>
+                            <div class="form-text">Максимум 4096 символов</div>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label for="photoUpload" class="form-label">Изображение (опционально)</label>
+                            <input type="file" class="form-control" id="photoUpload" name="photo" 
+                                   accept="image/*">
+                            <div class="form-text">Поддерживаются форматы: JPG, PNG, GIF</div>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" id="fromGroup" name="from_group" checked>
+                                <label class="form-check-label" for="fromGroup">
+                                    Публиковать от имени группы
+                                </label>
+                            </div>
+                        </div>
+                        
+                        <div class="d-grid gap-2">
+                            <button type="submit" class="btn btn-primary" id="publishBtn">
+                                <i class="fas fa-paper-plane me-2"></i>Опубликовать сейчас
+                            </button>
+                            <button type="button" class="btn btn-outline-primary" id="scheduleBtn">
+                                <i class="fas fa-clock me-2"></i>Запланировать публикацию
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-lg-4">
+            <div class="card shadow mb-4">
+                <div class="card-header py-3">
+                    <h6 class="m-0 font-weight-bold text-primary">Информация о публикации</h6>
+                </div>
+                <div class="card-body">
+                    <div class="alert alert-info">
+                        <i class="fas fa-info-circle me-2"></i>
+                        <strong>Настроенное сообщество:</strong> club233444174
+                    </div>
+                    <div class="alert alert-warning">
+                        <i class="fas fa-exclamation-triangle me-2"></i>
+                        <small>Убедитесь, что у токена есть права на публикацию в сообществе</small>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="card shadow mb-4">
+                <div class="card-header py-3">
+                    <h6 class="m-0 font-weight-bold text-primary">Быстрые действия</h6>
+                </div>
+                <div class="card-body">
+                    <div class="d-grid gap-2">
+                        <button class="btn btn-outline-info" id="generateContentBtn">
+                            <i class="fas fa-magic me-2"></i>Сгенерировать контент
+                        </button>
+                        <button class="btn btn-outline-secondary" id="viewAnalyticsBtn">
+                            <i class="fas fa-chart-line me-2"></i>Перейти к аналитике
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Модальное окно для планирования -->
+<div class="modal fade" id="scheduleModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Планирование публикации</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <form id="scheduleForm">
+                    <div class="mb-3">
+                        <label for="scheduleDate" class="form-label">Дата и время публикации</label>
+                        <input type="datetime-local" class="form-control" id="scheduleDate" name="schedule_date" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="scheduleMessage" class="form-label">Текст поста</label>
+                        <textarea class="form-control" id="scheduleMessage" name="message" rows="4" required></textarea>
+                    </div>
+                    <div class="mb-3">
+                        <div class="alert alert-info">
+                            <i class="fas fa-info-circle me-2"></i>
+                            Планирование будет выполнено в настроенное сообщество
+                        </div>
+                    </div>
+                    <div class="mb-3">
+                        <label for="schedulePhoto" class="form-label">Изображение (опционально)</label>
+                        <input type="file" class="form-control" id="schedulePhoto" name="photo" accept="image/*">
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Отмена</button>
+                <button type="button" class="btn btn-primary" id="confirmScheduleBtn">Запланировать</button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+let vkGroups = [];
+
+// Загрузка при загрузке страницы
+document.addEventListener('DOMContentLoaded', function() {
+    // Проверяем, есть ли предзаполненное сообщение в URL
+    const urlParams = new URLSearchParams(window.location.search);
+    const message = urlParams.get('message');
+    if (message) {
+        document.getElementById('postMessage').value = decodeURIComponent(message);
+    }
+});
+
+
+// Публикация поста
+document.getElementById('vkPostForm').addEventListener('submit', async function(e) {
+    e.preventDefault();
+    
+    const formData = new FormData(this);
+    const publishBtn = document.getElementById('publishBtn');
+    
+    publishBtn.disabled = true;
+    publishBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>Публикуем...';
+    
+    try {
+        const response = await fetch('/smm/vk/publish', {
+            method: 'POST',
+            body: formData
+        });
+        
+        const result = await response.json();
+        
+        if (result.success) {
+            showAlert('Пост успешно опубликован!', 'success');
+            document.getElementById('vkPostForm').reset();
+        } else {
+            showAlert('Ошибка публикации: ' + result.error, 'danger');
+        }
+    } catch (error) {
+        showAlert('Ошибка публикации', 'danger');
+    } finally {
+        publishBtn.disabled = false;
+        publishBtn.innerHTML = '<i class="fas fa-paper-plane me-2"></i>Опубликовать сейчас';
+    }
+});
+
+// Планирование публикации
+document.getElementById('scheduleBtn').addEventListener('click', function() {
+    // Копируем данные из основной формы
+    const message = document.getElementById('postMessage').value;
+    const groupId = document.getElementById('groupSelect').value;
+    const photo = document.getElementById('photoUpload').files[0];
+    
+    document.getElementById('scheduleMessage').value = message;
+    document.getElementById('scheduleGroup').value = groupId;
+    
+    // Устанавливаем минимальную дату (сейчас + 1 минута)
+    const now = new Date();
+    now.setMinutes(now.getMinutes() + 1);
+    document.getElementById('scheduleDate').value = now.toISOString().slice(0, 16);
+    
+    // Показываем модальное окно
+    const modal = new bootstrap.Modal(document.getElementById('scheduleModal'));
+    modal.show();
+});
+
+// Подтверждение планирования
+document.getElementById('confirmScheduleBtn').addEventListener('click', async function() {
+    const formData = new FormData(document.getElementById('scheduleForm'));
+    const scheduleDate = formData.get('schedule_date');
+    const message = formData.get('message');
+    const groupId = formData.get('group_id');
+    const photo = formData.get('photo');
+    
+    if (!message.trim()) {
+        showAlert('Введите текст поста', 'warning');
+        return;
+    }
+    
+    const confirmBtn = document.getElementById('confirmScheduleBtn');
+    confirmBtn.disabled = true;
+    confirmBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>Планируем...';
+    
+    try {
+        const response = await fetch('/smm/vk/schedule', {
+            method: 'POST',
+            body: formData
+        });
+        
+        const result = await response.json();
+        
+        if (result.success) {
+            showAlert('Пост успешно запланирован!', 'success');
+            bootstrap.Modal.getInstance(document.getElementById('scheduleModal')).hide();
+            document.getElementById('scheduleForm').reset();
+        } else {
+            showAlert('Ошибка планирования: ' + result.error, 'danger');
+        }
+    } catch (error) {
+        showAlert('Ошибка планирования', 'danger');
+    } finally {
+        confirmBtn.disabled = false;
+        confirmBtn.innerHTML = 'Запланировать';
+    }
+});
+
+// Кнопка проверки токена
+document.getElementById('checkTokenBtn').addEventListener('click', async function() {
+    const btn = this;
+    btn.disabled = true;
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>Проверяем...';
+    
+    try {
+        const response = await fetch('/smm/vk/check-token');
+        const result = await response.json();
+        
+        if (result.success) {
+            showAlert('Токен действителен! Пользователь: ' + result.user_info.first_name + ' ' + result.user_info.last_name, 'success');
+        } else {
+            showAlert('Ошибка токена: ' + result.error, 'danger');
+        }
+    } catch (error) {
+        showAlert('Ошибка проверки токена', 'danger');
+    } finally {
+        btn.disabled = false;
+        btn.innerHTML = '<i class="fas fa-check-circle me-2"></i>Проверить токен';
+    }
+});
+
+// Кнопка генерации контента
+document.getElementById('generateContentBtn').addEventListener('click', function() {
+    window.location.href = '/smm/content-generator';
+});
+
+// Кнопка перехода к аналитике
+document.getElementById('viewAnalyticsBtn').addEventListener('click', function() {
+    window.location.href = '/smm/analytics';
+});
+
+// Функция показа уведомлений
+function showAlert(message, type) {
+    const alertDiv = document.createElement('div');
+    alertDiv.className = `alert alert-${type} alert-dismissible fade show`;
+    alertDiv.innerHTML = `
+        ${message}
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    `;
+    
+    // Вставляем уведомление в начало контейнера
+    const container = document.querySelector('.container-fluid');
+    container.insertBefore(alertDiv, container.firstChild);
+    
+    // Автоматически скрываем через 5 секунд
+    setTimeout(() => {
+        if (alertDiv.parentNode) {
+            alertDiv.remove();
+        }
+    }, 5000);
+}
+</script>
+{% endblock %}

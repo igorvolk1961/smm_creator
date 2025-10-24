@@ -41,7 +41,10 @@ def create_app():
         )
         
         app.image_generator = ImageGenerator(
-            base_url=config['api_urls']['deepseek']
+            config=config.get('image_generation', {
+                'provider': 'webui',
+                'webui': {'base_url': 'http://localhost:7860'}
+            })
         )
 
     # Регистрируем блюпринты

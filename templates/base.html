@@ -64,6 +64,11 @@
                             </a>
                         </li>
                         <li class="nav-item">
+                            <a class="nav-link {% if request.endpoint == 'smm.vk_publisher' %}active{% endif %}" href="{{ url_for('smm.vk_publisher') }}">
+                                <i class="fab fa-vk me-2"></i>Публикация в VK
+                            </a>
+                        </li>
+                        <li class="nav-item">
                             <a class="nav-link {% if request.endpoint == 'smm.analytics' %}active{% endif %}" href="{{ url_for('smm.analytics') }}">
                                 <i class="fas fa-chart-line me-2"></i>Аналитика
                             </a>

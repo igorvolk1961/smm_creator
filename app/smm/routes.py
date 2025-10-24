@@ -2,6 +2,10 @@ from flask import render_template, request, jsonify, current_app
 from flask_login import login_required, current_user
 from app import db
 from app.smm import bp
+from generators.vk_publisher import VKPublisher
+from generators.image_gen import ImageGenerator
+import os
+from datetime import datetime, timedelta
 
 @bp.route('/profile', methods=['GET', 'POST'])
 @login_required
@@ -34,17 +38,16 @@ def generate_content():
         text_gen.set_topic(topic)
         
         post_content = text_gen.generate_post()
-        # image_description = text_gen.generate_post_image_description()
+        image_description = text_gen.generate_post_image_description()
         
-        # # Генерируем изображение
+        # Генерируем изображение
         # img_gen = current_app.image_generator
         # image_url = img_gen.generate_image(image_description)
         
         return jsonify({
             'success': True,
-            'post_content': post_content
-            # 'image_description': image_description,
-            # 'image_url': image_url
+            'post_content': post_content,
+            'image_description': image_description
         })
         
     except Exception as e:
@@ -62,3 +65,309 @@ def analytics():
 @login_required
 def scheduler():
     return render_template('smm/scheduler.html')
+
+@bp.route('/vk-publisher')
+@login_required
+def vk_publisher():
+    return render_template('smm/vk_publisher.html')
+
+# VK Publishing routes
+@bp.route('/vk/groups')
+@login_required
+def get_vk_groups():
+    """Получить список групп пользователя VK"""
+    try:
+        config = current_app.config['API_CONFIG']
+        vk_token = config['api_keys']['vk_access_token']
+        
+        vk_publisher = VKPublisher(vk_token)
+        groups = vk_publisher.get_user_groups()
+        
+        return jsonify({
+            'success': True,
+            'groups': groups
+        })
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
+@bp.route('/vk/publish', methods=['POST'])
+@login_required
+def publish_to_vk():
+    """Опубликовать пост в VK"""
+    try:
+        # Проверяем тип контента
+        if request.content_type and 'application/json' in request.content_type:
+            # JSON запрос (из генератора контента)
+            data = request.get_json()
+            message = data.get('message', '')
+            group_id = data.get('group_id')
+            photo_file = None
+        else:
+            # FormData запрос (из формы публикации)
+            message = request.form.get('message', '')
+            group_id = request.form.get('group_id')
+            photo_file = request.files.get('photo')
+        
+        if not message:
+            return jsonify({
+                'success': False,
+                'error': 'Текст поста не может быть пустым'
+            }), 400
+        
+        config = current_app.config['API_CONFIG']
+        vk_token = config['api_keys']['vk_access_token']
+        vk_group_id = config['api_keys']['vk_group_id']
+        
+        # Используем группу из конфига, игнорируем переданный group_id
+        vk_publisher = VKPublisher(vk_token, vk_group_id)
+        
+        # Обработка фото если загружено
+        photo_path = None
+        if photo_file and photo_file.filename:
+            # Создаем папку для временных файлов если не существует
+            upload_dir = 'uploads'
+            if not os.path.exists(upload_dir):
+                os.makedirs(upload_dir)
+            
+            # Сохраняем файл
+            filename = f"vk_photo_{datetime.now().strftime('%Y%m%d_%H%M%S')}.jpg"
+            photo_path = os.path.join(upload_dir, filename)
+            photo_file.save(photo_path)
+        
+        # Публикуем пост
+        result = vk_publisher.publish_post(
+            message=message,
+            photo_path=photo_path,
+            group_id=vk_group_id,
+            from_group=True
+        )
+        
+        # Удаляем временный файл если был
+        if photo_path and os.path.exists(photo_path):
+            os.remove(photo_path)
+        
+        return jsonify(result)
+        
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
+@bp.route('/vk/schedule', methods=['POST'])
+@login_required
+def schedule_vk_post():
+    """Запланировать публикацию поста в VK"""
+    try:
+        # Проверяем тип контента
+        if request.content_type and 'application/json' in request.content_type:
+            # JSON запрос
+            data = request.get_json()
+            message = data.get('message', '')
+            group_id = data.get('group_id')
+            schedule_date = data.get('schedule_date')
+            photo_file = None
+        else:
+            # FormData запрос
+            message = request.form.get('message', '')
+            group_id = request.form.get('group_id')
+            schedule_date = request.form.get('schedule_date')
+            photo_file = request.files.get('photo')
+        
+        if not message:
+            return jsonify({
+                'success': False,
+                'error': 'Текст поста не может быть пустым'
+            }), 400
+        
+        if not schedule_date:
+            return jsonify({
+                'success': False,
+                'error': 'Дата публикации не указана'
+            }), 400
+        
+        # Конвертируем дату в Unix timestamp
+        try:
+            schedule_datetime = datetime.fromisoformat(schedule_date.replace('Z', '+00:00'))
+            publish_timestamp = int(schedule_datetime.timestamp())
+        except ValueError:
+            return jsonify({
+                'success': False,
+                'error': 'Неверный формат даты'
+            }), 400
+        
+        config = current_app.config['API_CONFIG']
+        vk_token = config['api_keys']['vk_access_token']
+        vk_group_id = config['api_keys']['vk_group_id']
+        
+        # Используем группу из конфига, игнорируем переданный group_id
+        vk_publisher = VKPublisher(vk_token, vk_group_id)
+        
+        # Обработка фото если загружено
+        photo_path = None
+        if photo_file and photo_file.filename:
+            upload_dir = 'uploads'
+            if not os.path.exists(upload_dir):
+                os.makedirs(upload_dir)
+            
+            filename = f"vk_scheduled_photo_{datetime.now().strftime('%Y%m%d_%H%M%S')}.jpg"
+            photo_path = os.path.join(upload_dir, filename)
+            photo_file.save(photo_path)
+        
+        # Планируем пост
+        result = vk_publisher.schedule_post(
+            message=message,
+            publish_date=publish_timestamp,
+            photo_path=photo_path,
+            group_id=vk_group_id,
+            from_group=True
+        )
+        
+        # Удаляем временный файл если был
+        if photo_path and os.path.exists(photo_path):
+            os.remove(photo_path)
+        
+        return jsonify(result)
+        
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
+@bp.route('/vk/stats/<post_id>')
+@login_required
+def get_vk_post_stats(post_id):
+    """Получить статистику поста VK"""
+    try:
+        group_id = request.args.get('group_id')
+        
+        config = current_app.config['API_CONFIG']
+        vk_token = config['api_keys']['vk_access_token']
+        vk_group_id = config['api_keys']['vk_group_id']
+        
+        # Используем группу из конфига, игнорируем переданный group_id
+        vk_publisher = VKPublisher(vk_token, vk_group_id)
+        stats = vk_publisher.get_post_stats(post_id, vk_group_id)
+        
+        return jsonify(stats)
+        
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
+@bp.route('/generate-image', methods=['POST'])
+@login_required
+def generate_image():
+    """Генерировать изображение по описанию"""
+    try:
+        data = request.get_json()
+        description = data.get('description', '')
+        
+        if not description:
+            return jsonify({
+                'success': False,
+                'error': 'Описание изображения не может быть пустым'
+            }), 400
+        
+        # Используем уже созданный генератор изображений
+        img_gen = current_app.image_generator
+        
+        # Создаем папку для изображений если не существует
+        images_dir = 'static/generated_images'
+        if not os.path.exists(images_dir):
+            os.makedirs(images_dir)
+        
+        # Генерируем уникальное имя файла
+        filename = f"generated_{datetime.now().strftime('%Y%m%d_%H%M%S')}.png"
+        filepath = os.path.join(images_dir, filename)
+        
+        # Генерируем и сохраняем изображение
+        img_gen.generate_and_save(description, filepath)
+        
+        # Возвращаем URL изображения
+        image_url = f"/static/generated_images/{filename}"
+        
+        return jsonify({
+            'success': True,
+            'image_url': image_url,
+            'message': 'Изображение успешно сгенерировано',
+            'provider': img_gen.provider
+        })
+        
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
+@bp.route('/vk/group-stats')
+@login_required
+def get_vk_group_stats():
+    """Получить статистику группы VK"""
+    try:
+        date_from = request.args.get('date_from')
+        date_to = request.args.get('date_to')
+        interval = request.args.get('interval', 'day')
+        stats_groups = request.args.get('stats_groups')
+        
+        config = current_app.config['API_CONFIG']
+        vk_token = config['api_keys']['vk_access_token']
+        vk_group_id = config['api_keys']['vk_group_id']
+        
+        vk_publisher = VKPublisher(vk_token, vk_group_id)
+        stats = vk_publisher.get_group_stats(
+            group_id=vk_group_id,
+            date_from=date_from,
+            date_to=date_to,
+            interval=interval,
+            stats_groups=stats_groups
+        )
+        
+        return jsonify(stats)
+        
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
+@bp.route('/vk/app-stats')
+@login_required
+def get_vk_app_stats():
+    """Получить статистику приложения VK"""
+    try:
+        app_id = request.args.get('app_id')
+        date_from = request.args.get('date_from')
+        date_to = request.args.get('date_to')
+        interval = request.args.get('interval', 'day')
+        
+        if not app_id:
+            return jsonify({
+                'success': False,
+                'error': 'ID приложения не указан'
+            }), 400
+        
+        config = current_app.config['API_CONFIG']
+        vk_token = config['api_keys']['vk_access_token']
+        
+        vk_publisher = VKPublisher(vk_token)
+        stats = vk_publisher.get_app_stats(
+            app_id=app_id,
+            date_from=date_from,
+            date_to=date_to,
+            interval=interval
+        )
+        
+        return jsonify(stats)
+        
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
