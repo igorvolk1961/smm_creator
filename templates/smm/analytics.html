@@ -39,15 +39,6 @@
                         <input type="text" class="form-control" id="postId" placeholder="Например: 123">
                         <div class="form-text">Для получения статистики конкретного поста</div>
                     </div>
-                        <div class="col-md-2" id="vkStatsGroup">
-                            <label for="statsGroup" class="form-label">Тип статистики</label>
-                            <select class="form-select" id="statsGroup">
-                                <option value="">Все данные</option>
-                                <option value="visitors">Посетители</option>
-                                <option value="reach">Охват</option>
-                                <option value="activity">Активность</option>
-                            </select>
-                        </div>
                         <div class="col-md-3 d-flex align-items-end">
                             <button class="btn btn-primary" id="applyFilters">Применить</button>
                         </div>
@@ -57,108 +48,10 @@
         </div>
     </div>
 
-    <!-- Основные метрики -->
-    <div class="row mb-4">
-        <div class="col-xl-3 col-md-6 mb-4">
-            <div class="card border-left-primary shadow h-100 py-2">
-                <div class="card-body">
-                    <div class="row no-gutters align-items-center">
-                        <div class="col mr-2">
-                            <div class="text-xs font-weight-bold text-primary text-uppercase mb-1">
-                                Просмотры</div>
-                            <div class="h5 mb-0 font-weight-bold text-gray-800">0</div>
-                        </div>
-                        <div class="col-auto">
-                            <i class="fas fa-eye fa-2x text-gray-300"></i>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
+    <!-- Контейнер для статистики -->
+    <div id="statsContainer"></div>
 
-        <div class="col-xl-3 col-md-6 mb-4">
-            <div class="card border-left-success shadow h-100 py-2">
-                <div class="card-body">
-                    <div class="row no-gutters align-items-center">
-                        <div class="col mr-2">
-                            <div class="text-xs font-weight-bold text-success text-uppercase mb-1">
-                                Лайки</div>
-                            <div class="h5 mb-0 font-weight-bold text-gray-800">0</div>
-                        </div>
-                        <div class="col-auto">
-                            <i class="fas fa-heart fa-2x text-gray-300"></i>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
 
-        <div class="col-xl-3 col-md-6 mb-4">
-            <div class="card border-left-info shadow h-100 py-2">
-                <div class="card-body">
-                    <div class="row no-gutters align-items-center">
-                        <div class="col mr-2">
-                            <div class="text-xs font-weight-bold text-info text-uppercase mb-1">
-                                Комментарии</div>
-                            <div class="h5 mb-0 font-weight-bold text-gray-800">0</div>
-                        </div>
-                        <div class="col-auto">
-                            <i class="fas fa-comments fa-2x text-gray-300"></i>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-
-        <div class="col-xl-3 col-md-6 mb-4">
-            <div class="card border-left-warning shadow h-100 py-2">
-                <div class="card-body">
-                    <div class="row no-gutters align-items-center">
-                        <div class="col mr-2">
-                            <div class="text-xs font-weight-bold text-warning text-uppercase mb-1">
-                                Репосты</div>
-                            <div class="h5 mb-0 font-weight-bold text-gray-800">0</div>
-                        </div>
-                        <div class="col-auto">
-                            <i class="fas fa-share fa-2x text-gray-300"></i>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <!-- Графики -->
-    <div class="row">
-        <div class="col-lg-8">
-            <div class="card shadow mb-4">
-                <div class="card-header py-3">
-                    <h6 class="m-0 font-weight-bold text-primary">Динамика просмотров</h6>
-                </div>
-                <div class="card-body">
-                    <div class="text-center">
-                        <i class="fas fa-chart-line fa-3x text-gray-300"></i>
-                        <p class="mt-3">График будет добавлен в следующих версиях</p>
-                    </div>
-                </div>
-            </div>
-        </div>
-
-        <div class="col-lg-4">
-            <div class="card shadow mb-4">
-                <div class="card-header py-3">
-                    <h6 class="m-0 font-weight-bold text-primary">Топ посты</h6>
-                </div>
-                <div class="card-body">
-                    <div class="text-center text-muted">
-                        <i class="fas fa-chart-bar fa-3x mb-3"></i>
-                        <p>Нет данных для анализа</p>
-                        <small>Подключите мессенджеры для получения статистики</small>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
 </div>
 {% endblock %}
 
@@ -198,7 +91,6 @@ document.getElementById('applyFilters').addEventListener('click', async function
     const dateTo = document.getElementById('dateTo').value;
     
     // Загружаем только VK статистику
-    const statsGroup = document.getElementById('statsGroup').value;
     const postId = document.getElementById('postId').value;
     
     if (postId) {
@@ -206,15 +98,18 @@ document.getElementById('applyFilters').addEventListener('click', async function
         await loadVKPostStats(postId);
     } else {
         // Загружаем общую статистику сообщества
-        await loadVKStats(dateFrom, dateTo, statsGroup);
+        await loadVKStats(dateFrom, dateTo);
     }
 });
 
 // Загрузка статистики конкретного поста VK
 async function loadVKPostStats(postId) {
     try {
+        console.log('Loading stats for post ID:', postId);
         const response = await fetch(`/smm/vk/stats/${postId}`);
         const result = await response.json();
+        
+        console.log('Post stats response:', result);
         
         if (result.success) {
             displayVKPostStats(result);
@@ -222,12 +117,13 @@ async function loadVKPostStats(postId) {
             showAlert('Ошибка загрузки статистики поста: ' + result.error, 'danger');
         }
     } catch (error) {
+        console.error('Error loading post stats:', error);
         showAlert('Ошибка загрузки статистики поста', 'danger');
     }
 }
 
 // Загрузка статистики VK
-async function loadVKStats(dateFrom, dateTo, statsGroup) {
+async function loadVKStats(dateFrom, dateTo) {
     try {
         const params = new URLSearchParams({
             interval: 'day'
@@ -235,10 +131,12 @@ async function loadVKStats(dateFrom, dateTo, statsGroup) {
         
         if (dateFrom) params.append('date_from', dateFrom);
         if (dateTo) params.append('date_to', dateTo);
-        if (statsGroup) params.append('stats_groups', statsGroup);
         
+        console.log('Loading VK group stats with params:', params.toString());
         const response = await fetch(`/smm/vk/group-stats?${params.toString()}`);
         const result = await response.json();
+        
+        console.log('VK group stats response:', result);
         
         if (result.success) {
             displayVKStats(result.stats);
@@ -246,6 +144,7 @@ async function loadVKStats(dateFrom, dateTo, statsGroup) {
             showAlert('Ошибка загрузки статистики: ' + result.error, 'danger');
         }
     } catch (error) {
+        console.error('Error loading VK stats:', error);
         showAlert('Ошибка загрузки статистики', 'danger');
     }
 }
@@ -300,18 +199,207 @@ function displayVKPostStats(result) {
 
 // Отображение статистики VK
 function displayVKStats(stats) {
-    // Обновляем основные метрики
-    if (stats.visitors) {
-        document.querySelector('.text-primary').parentElement.querySelector('.h5').textContent = stats.visitors.views || 0;
+    const statsContainer = document.getElementById('statsContainer');
+    
+    // Отладочная информация
+    console.log('VK Stats received:', stats);
+    
+    let html = `
+        <div class="row">
+            <div class="col-md-12">
+                <div class="card">
+                    <div class="card-header">
+                        <h6 class="m-0">Статистика сообщества</h6>
+                    </div>
+                    <div class="card-body">
+    `;
+    
+    if (stats.visitors && stats.visitors.length > 0) {
+        const visitors = stats.visitors[0];
+        html += `
+            <div class="row mb-3">
+                <div class="col-md-12">
+                    <h6>Посетители</h6>
+                </div>
+                <div class="col-md-3">
+                    <div class="text-center">
+                        <h4 class="text-primary">${visitors.views || 0}</h4>
+                        <small class="text-muted">Просмотры</small>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="text-center">
+                        <h4 class="text-info">${visitors.visitors || 0}</h4>
+                        <small class="text-muted">Уникальные посетители</small>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="text-center">
+                        <h4 class="text-secondary">${visitors.mobile_views || 0}</h4>
+                        <small class="text-muted">Мобильные просмотры</small>
+                    </div>
+                </div>
+            </div>
+        `;
     }
     
-    if (stats.activity) {
-        document.querySelector('.text-success').parentElement.querySelector('.h5').textContent = stats.activity.likes || 0;
-        document.querySelector('.text-info').parentElement.querySelector('.h5').textContent = stats.activity.comments || 0;
-        document.querySelector('.text-warning').parentElement.querySelector('.h5').textContent = stats.activity.reposts || 0;
+    if (stats.activity && stats.activity.length > 0) {
+        const activity = stats.activity[0];
+        html += `
+            <div class="row">
+                <div class="col-md-12">
+                    <h6>Активность</h6>
+                </div>
+                <div class="col-md-3">
+                    <div class="text-center">
+                        <h4 class="text-success">${activity.likes || 0}</h4>
+                        <small class="text-muted">Лайки</small>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="text-center">
+                        <h4 class="text-info">${activity.comments || 0}</h4>
+                        <small class="text-muted">Комментарии</small>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="text-center">
+                        <h4 class="text-warning">${activity.reposts || 0}</h4>
+                        <small class="text-muted">Репосты</small>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="text-center">
+                        <h4 class="text-dark">${activity.copies || 0}</h4>
+                        <small class="text-muted">Копии</small>
+                    </div>
+                </div>
+            </div>
+        `;
+    }
+    
+    if (!stats.visitors && !stats.activity) {
+        html += `
+            <div class="alert alert-info">
+                <i class="fas fa-info-circle me-2"></i>
+                Статистика недоступна или отсутствует за выбранный период
+            </div>
+        `;
+    }
+    
+    html += `
+                    </div>
+                </div>
+            </div>
+        </div>
+    `;
+    
+    // Добавляем детализацию по дням
+    if (stats.periods && stats.periods.length > 0) {
+        html += `
+            <div class="row mt-4">
+                <div class="col-md-12">
+                    <div class="card">
+                        <div class="card-header d-flex justify-content-between align-items-center">
+                            <h6 class="m-0">Статистика по дням</h6>
+                            <div class="form-check form-switch">
+                                <input class="form-check-input" type="checkbox" id="showOnlyActiveDays">
+                                <label class="form-check-label" for="showOnlyActiveDays">
+                                    Только активные дни
+                                </label>
+                            </div>
+                        </div>
+                        <div class="card-body">
+                            <div class="table-responsive">
+                                <table class="table table-striped table-hover">
+                                    <thead class="table-dark">
+                                        <tr>
+                                            <th>Дата</th>
+                                            <th class="text-center">Просмотры</th>
+                                            <th class="text-center">Посетители</th>
+                                            <th class="text-center">Мобильные</th>
+                                            <th class="text-center">Лайки</th>
+                                            <th class="text-center">Комментарии</th>
+                                            <th class="text-center">Репосты</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+        `;
+        
+        // Сортируем периоды по дате (от новых к старым)
+        const sortedPeriods = stats.periods.sort((a, b) => b.period_from - a.period_from);
+        
+        sortedPeriods.forEach(period => {
+            const date = new Date(period.period_from * 1000);
+            const dateStr = date.toLocaleDateString('ru-RU');
+            
+            const visitors = period.visitors || {};
+            const activity = period.activity || {};
+            
+            // Подсчитываем общую активность для выделения активных дней
+            const totalActivity = (visitors.views || 0) + (activity.likes || 0) + (activity.comments || 0) + (activity.copies || 0);
+            const rowClass = totalActivity > 0 ? 'table-success' : '';
+            
+            html += `
+                <tr class="${rowClass}">
+                    <td><strong>${dateStr}</strong></td>
+                    <td class="text-center">${visitors.views || 0}</td>
+                    <td class="text-center">${visitors.visitors || 0}</td>
+                    <td class="text-center">${visitors.mobile_views || 0}</td>
+                    <td class="text-center">${activity.likes || 0}</td>
+                    <td class="text-center">${activity.comments || 0}</td>
+                    <td class="text-center">${activity.copies || 0}</td>
+                </tr>
+            `;
+        });
+        
+        html += `
+                                    </tbody>
+                                </table>
+                            </div>
+                            <div class="mt-3">
+                                <small class="text-muted">
+                                    <i class="fas fa-info-circle me-1"></i>
+                                    Дни с активностью выделены зеленым цветом
+                                </small>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        `;
+    }
+    
+    statsContainer.innerHTML = html;
+    
+    // Добавляем обработчик для переключателя "Только активные дни"
+    const showOnlyActiveDaysCheckbox = document.getElementById('showOnlyActiveDays');
+    if (showOnlyActiveDaysCheckbox) {
+        showOnlyActiveDaysCheckbox.addEventListener('change', function() {
+            toggleActiveDaysOnly(this.checked);
+        });
     }
     
     showAlert('Статистика загружена успешно!', 'success');
+}
+
+// Функция для переключения отображения только активных дней
+function toggleActiveDaysOnly(showOnlyActive) {
+    const tableRows = document.querySelectorAll('#statsContainer tbody tr');
+    
+    tableRows.forEach(row => {
+        if (showOnlyActive) {
+            // Показываем только строки с активностью (зеленые)
+            if (row.classList.contains('table-success')) {
+                row.style.display = '';
+            } else {
+                row.style.display = 'none';
+            }
+        } else {
+            // Показываем все строки
+            row.style.display = '';
+        }
+    });
 }
 
 // Функция показа уведомлений

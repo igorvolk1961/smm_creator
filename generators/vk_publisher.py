@@ -338,13 +338,31 @@ class VKPublisher:
             Словарь со статистикой
         """
         url = f"{self.base_url}/wall.getById"
+        
+        # Формируем правильный формат ID поста для VK API
+        if group_id and post_id:
+            # Если передан и group_id и post_id, используем формат -{group_id}_{post_id}
+            posts_param = f"-{group_id}_{post_id}"
+        elif post_id and '_' in str(post_id):
+            # Если post_id уже содержит group_id (например, "233444174_1")
+            posts_param = f"-{post_id}"
+        elif post_id:
+            # Если только post_id, добавляем group_id из конфига
+            posts_param = f"-{self.group_id}_{post_id}"
+        else:
+            return {
+                'success': False,
+                'error': 'Не указан ID поста'
+            }
+        
         params = {
             'access_token': self.access_token,
-            'posts': f"{group_id}_{post_id}" if group_id else post_id,
+            'posts': posts_param,
             'v': '5.131'
         }
         
         try:
+            print(f"Requesting VK post stats with params: {params}")
             response = requests.get(url, params=params)
             if response.status_code != 200:
                 return {
@@ -360,6 +378,11 @@ class VKPublisher:
                     'error': f'Ошибка парсинга JSON: {str(json_error)}. Ответ: {response.text[:200]}'
                 }
             
+            # Отладочная информация
+            print(f"VK API Response for post {posts_param}: {data}")
+            print(f"Response type: {type(data.get('response'))}")
+            print(f"Response content: {data.get('response')}")
+            
             if 'error' in data:
                 return {
                     'success': False,
@@ -374,13 +397,21 @@ class VKPublisher:
                 }
             
             response = data['response']
-            if 'items' not in response or not response['items']:
+            
+            # Для wall.getById response - это массив постов, а не объект с items
+            if not isinstance(response, list):
+                return {
+                    'success': False,
+                    'error': f'Некорректный формат ответа VK API: ожидался массив, получен {type(response)}'
+                }
+            
+            if not response:
                 return {
                     'success': False,
                     'error': 'Пост не найден или недоступен'
                 }
             
-            post = response['items'][0]
+            post = response[0]
             return {
                 'success': True,
                 'post_id': post.get('id', 'N/A'),
@@ -439,8 +470,12 @@ class VKPublisher:
             params['stats_groups'] = stats_groups
             
         try:
+            print(f"Requesting VK group stats with params: {params}")
             response = requests.get(url, params=params)
             data = response.json()
+            
+            # Отладочная информация
+            print(f"VK API Response for group stats: {data}")
             
             if 'error' in data:
                 return {
@@ -448,9 +483,34 @@ class VKPublisher:
                     'error': f"VK API Error: {data['error']['error_msg']}"
                 }
             
+            # Обрабатываем статистику по периодам
+            periods = data['response']
+            
+            # Суммируем статистику по всем периодам
+            total_visitors = {'views': 0, 'visitors': 0, 'mobile_views': 0}
+            total_activity = {'likes': 0, 'comments': 0, 'reposts': 0, 'copies': 0}
+            
+            for period in periods:
+                if 'visitors' in period:
+                    visitors = period['visitors']
+                    total_visitors['views'] += visitors.get('views', 0)
+                    total_visitors['visitors'] += visitors.get('visitors', 0)
+                    total_visitors['mobile_views'] += visitors.get('mobile_views', 0)
+                
+                if 'activity' in period:
+                    activity = period['activity']
+                    total_activity['likes'] += activity.get('likes', 0)
+                    total_activity['comments'] += activity.get('comments', 0)
+                    total_activity['reposts'] += activity.get('copies', 0)  # copies = reposts
+                    total_activity['copies'] += activity.get('copies', 0)
+            
             return {
                 'success': True,
-                'stats': data['response']
+                'stats': {
+                    'visitors': [total_visitors],
+                    'activity': [total_activity],
+                    'periods': periods  # Оставляем исходные данные для отладки
+                }
             }
             
         except Exception as e:

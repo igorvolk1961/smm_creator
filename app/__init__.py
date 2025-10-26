@@ -10,9 +10,19 @@ bcrypt = Bcrypt()
 login_manager = LoginManager()
 
 def create_app():
-    app = Flask(__name__, template_folder='../templates')
+    app = Flask(__name__, 
+                template_folder='../templates',
+                static_folder='../static',
+                static_url_path='/static')
     app.config['SECRET_KEY'] = 'your-secret-key-here'
-    app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///smm_app.db'
+    # Определяем путь к базе данных в зависимости от окружения
+    import os
+    if os.path.exists('instance'):
+        # Если папка instance существует, используем её
+        app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///instance/smm_app.db'
+    else:
+        # Иначе создаем в корне проекта
+        app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///smm_app.db'
     app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
     # Инициализация расширений
@@ -27,8 +37,37 @@ def create_app():
     with open('config.json', 'r', encoding='utf-8') as f:
         app.config['API_CONFIG'] = json.load(f)
     
-    # Инициализируем генераторы один раз при запуске
+    # Инициализируем генераторы и базу данных при запуске
     with app.app_context():
+        # Импортируем модели ПЕРЕД созданием таблиц
+        from app.models import User
+        
+        # Создаем базу данных и таблицы, если их нет
+        try:
+            print(f"🗄️ Путь к базе данных: {app.config['SQLALCHEMY_DATABASE_URI']}")
+            print(f"📁 Текущая директория: {os.getcwd()}")
+            
+            db.create_all()
+            print("✅ База данных инициализирована")
+            
+            # Проверяем что таблицы созданы
+            inspector = db.inspect(db.engine)
+            tables = inspector.get_table_names()
+            print(f"📋 Созданные таблицы: {tables}")
+            
+            # Проверяем размер файла базы данных
+            db_path = app.config['SQLALCHEMY_DATABASE_URI'].replace('sqlite:///', '')
+            if os.path.exists(db_path):
+                size = os.path.getsize(db_path)
+                print(f"📊 Размер файла базы данных: {size} байт")
+            else:
+                print(f"⚠️ Файл базы данных не найден: {db_path}")
+            
+        except Exception as e:
+            print(f"⚠️ Ошибка инициализации базы данных: {e}")
+            import traceback
+            traceback.print_exc()
+        
         from generators.text_gen import TextGenerator
         from generators.image_gen import ImageGenerator
         

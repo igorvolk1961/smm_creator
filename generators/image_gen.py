@@ -26,7 +26,8 @@ class ImageGenerator:
                 api_key=gpt4o_config.get('api_key'),
                 base_url=gpt4o_config.get('base_url', 'https://api.openai.com/v1')
             )
-            self.model = gpt4o_config.get('model', 'gpt-4o')
+            self.text_model = gpt4o_config.get('text_model', 'gpt-4o')
+            self.image_model = gpt4o_config.get('image_model', 'dall-e-3')
         elif self.provider == 'dalle':
             dalle_config = config.get('dalle', {})
             self.openai_client = OpenAI(api_key=dalle_config.get('api_key'))
@@ -73,7 +74,7 @@ class ImageGenerator:
         """Улучшает промпт с помощью GPT-4o"""
         try:
             response = self.openai_client.chat.completions.create(
-                model=self.model,
+                model=self.text_model,
                 messages=[
                     {
                         "role": "system", 
@@ -105,8 +106,14 @@ class ImageGenerator:
             }
             dalle_size = size_mapping.get(size, "1024x1024")
             
+            # Используем правильную модель для DALL-E
+            if self.provider == 'gpt4o':
+                dalle_model = self.image_model  # Используем модель изображений из конфига
+            else:
+                dalle_model = self.model  # Для провайдера dalle используем настроенную модель
+            
             response = self.openai_client.images.generate(
-                model=self.model,
+                model=dalle_model,
                 prompt=prompt,
                 size=dalle_size,
                 quality=quality,
