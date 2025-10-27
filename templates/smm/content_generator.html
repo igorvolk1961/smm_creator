@@ -166,6 +166,8 @@ document.getElementById('contentForm').addEventListener('submit', async function
 // Обработчики для кнопок публикации
 document.getElementById('publishVkBtn').addEventListener('click', function() {
     const postContent = document.getElementById('postContent').textContent;
+    const generatedImage = document.getElementById('generatedImage');
+    
     if (!postContent.trim()) {
         showAlert('Сначала сгенерируйте контент', 'warning');
         return;
@@ -175,6 +177,12 @@ document.getElementById('publishVkBtn').addEventListener('click', function() {
     const params = new URLSearchParams({
         message: postContent
     });
+    
+    // Добавляем URL изображения если оно есть
+    if (generatedImage && generatedImage.src && generatedImage.style.display !== 'none') {
+        params.append('image_url', generatedImage.src);
+    }
+    
     window.open(`/smm/vk-publisher?${params.toString()}`, '_blank');
 });
 

@@ -142,14 +142,42 @@
 {% block scripts %}
 <script>
 let vkGroups = [];
+let downloadedImageBlob = null; // Сохраняем blob загруженного изображения
 
 // Загрузка при загрузке страницы
-document.addEventListener('DOMContentLoaded', function() {
+document.addEventListener('DOMContentLoaded', async function() {
     // Проверяем, есть ли предзаполненное сообщение в URL
     const urlParams = new URLSearchParams(window.location.search);
     const message = urlParams.get('message');
     if (message) {
         document.getElementById('postMessage').value = decodeURIComponent(message);
+    }
+    
+    // Проверяем, есть ли URL изображения
+    const imageUrl = urlParams.get('image_url');
+    if (imageUrl) {
+        // Скачиваем изображение и добавляем в форму
+        try {
+            const response = await fetch(imageUrl);
+            downloadedImageBlob = await response.blob();
+            
+            // Показываем превью изображения
+            const preview = document.createElement('img');
+            preview.src = URL.createObjectURL(downloadedImageBlob);
+            preview.className = 'img-fluid rounded mt-2';
+            preview.style.maxHeight = '200px';
+            
+            const photoUploadDiv = document.getElementById('photoUpload').parentElement;
+            const existingPreview = photoUploadDiv.querySelector('img');
+            if (existingPreview) {
+                existingPreview.remove();
+            }
+            photoUploadDiv.appendChild(preview);
+            
+            showAlert('Изображение загружено из генератора контента', 'success');
+        } catch (error) {
+            console.error('Ошибка загрузки изображения:', error);
+        }
     }
 });
 
@@ -159,6 +187,13 @@ document.getElementById('vkPostForm').addEventListener('submit', async function(
     e.preventDefault();
     
     const formData = new FormData(this);
+    
+    // Если есть загруженное изображение из URL, добавляем его в FormData
+    if (downloadedImageBlob) {
+        const file = new File([downloadedImageBlob], 'generated-image.png', { type: 'image/png' });
+        formData.set('photo', file);
+    }
+    
     const publishBtn = document.getElementById('publishBtn');
     
     publishBtn.disabled = true;
