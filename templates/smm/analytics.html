@@ -57,17 +57,16 @@
 
 {% block scripts %}
 <script>
-let vkGroups = [];
+document.addEventListener('DOMContentLoaded', function() {
+    let vkGroups = [];
 
-// Загрузка групп при выборе VK
-document.getElementById('platform').addEventListener('change', function() {
+    // Загрузка групп при выборе VK
+    document.getElementById('platform').addEventListener('change', function() {
     const platform = this.value;
     const vkGroupSelect = document.getElementById('vkGroupSelect');
-    const vkStatsGroup = document.getElementById('vkStatsGroup');
     
     // Всегда показываем фильтры VK, так как это единственная платформа
     vkGroupSelect.style.display = 'block';
-    vkStatsGroup.style.display = 'block';
     document.getElementById('vkPostSelect').style.display = 'block';
     loadVKGroups();
 });
@@ -422,5 +421,6 @@ function showAlert(message, type) {
         }
     }, 5000);
 }
+});
 </script>
 {% endblock %}

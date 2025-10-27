@@ -32,17 +32,27 @@ def register():
 @bp.route('/login', methods=['GET', 'POST'])
 def login():
     if request.method == 'POST':
-        data = request.get_json()
+        # Пробуем получить данные и из JSON, и из формы
+        data = request.get_json() or request.form
         username = data.get('username')
         password = data.get('password')
         
+        print(f"🔐 Попытка входа: username={username}, method={request.method}, has_json={request.is_json}")
+        
         user = User.query.filter_by(username=username).first()
         
-        if user and user.check_password(password):
-            login_user(user)
-            return jsonify({'success': True, 'redirect': url_for('main.dashboard')})
+        if user:
+            print(f"👤 Пользователь найден: {user.username}")
+            if user.check_password(password):
+                print(f"✅ Пароль верный, выполняем вход")
+                login_user(user)
+                return jsonify({'success': True, 'redirect': url_for('main.dashboard')})
+            else:
+                print(f"❌ Пароль неверный")
         else:
-            return jsonify({'success': False, 'error': 'Неверное имя пользователя или пароль'})
+            print(f"❌ Пользователь не найден")
+        
+        return jsonify({'success': False, 'error': 'Неверное имя пользователя или пароль'})
     
     return render_template('auth/login.html')
 

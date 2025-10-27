@@ -134,7 +134,7 @@ document.getElementById('contentForm').addEventListener('submit', async function
     generateBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>Генерируем...';
     
     try {
-        const response = await fetch('/smm/generate', {
+        const response = await fetch('/smm/generate-content', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
@@ -145,7 +145,7 @@ document.getElementById('contentForm').addEventListener('submit', async function
         const result = await response.json();
         
         if (result.success) {
-            document.getElementById('postContent').textContent = result.post_content;
+            document.getElementById('postContent').textContent = result.message || result.post_content;
             document.getElementById('imagePrompt').value = result.image_description;
             
             loadingDiv.style.display = 'none';

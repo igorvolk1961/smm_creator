@@ -11,10 +11,12 @@ from datetime import datetime, timedelta
 @login_required
 def profile():
     if request.method == 'POST':
-        username = request.form.get('username')
-        email = request.form.get('email')
-        vk_api_id = request.form.get('vk_api_id')
-        vk_group_id = request.form.get('vk_group_id')
+        # Пробуем получить данные и из JSON, и из формы
+        data = request.get_json() or request.form
+        username = data.get('username')
+        email = data.get('email')
+        vk_api_id = data.get('vk_api_id')
+        vk_group_id = data.get('vk_group_id')
         
         if username:
             current_user.username = username
@@ -51,7 +53,7 @@ def generate_content():
     try:
         data = request.get_json()
         topic = data.get('topic', '')
-        style = data.get('style', '')
+        tone = data.get('tone', '')
         platform = data.get('platform', '')
         
         if not topic:
@@ -60,13 +62,15 @@ def generate_content():
         # Генерируем контент
         text_generator = current_app.text_generator
         
+        # Устанавливаем параметры генератора
+        text_generator.set_topic(topic)
+        text_generator.set_tone(tone)
+        
         # Генерируем текст сообщения
-        message_prompt = f"Создай пост для {platform} на тему '{topic}' в стиле {style}. Пост должен быть интересным и привлекательным."
-        message = text_generator.generate_text(message_prompt)
+        message = text_generator.generate_post()
         
         # Генерируем описание изображения
-        image_prompt = f"Создай описание изображения для поста на тему '{topic}' в стиле {style}. Описание должно быть детальным и подходящим для генерации изображения."
-        image_description = text_generator.generate_text(image_prompt)
+        image_description = text_generator.generate_post_image_description()
         
         return jsonify({
             'success': True,
@@ -86,7 +90,7 @@ def get_vk_groups():
     """Получить список групп VK пользователя"""
     try:
         config = current_app.config['API_CONFIG']
-        vk_token = config['api_keys']['vk_access_token']
+        vk_token = config['vk']['access_token']
         
         vk_publisher = VKPublisher(vk_token)
         groups = vk_publisher.get_groups()
@@ -119,8 +123,8 @@ def publish_to_vk():
             return jsonify({'success': False, 'error': 'Текст поста не может быть пустым'}), 400
         
         config = current_app.config['API_CONFIG']
-        vk_token = config['api_keys']['vk_access_token']
-        vk_group_id = config['api_keys']['vk_group_id']
+        vk_token = config['vk']['access_token']
+        vk_group_id = config['vk']['group_id']
         
         vk_publisher = VKPublisher(vk_token, vk_group_id)
         
@@ -166,8 +170,8 @@ def schedule_vk_post():
             return jsonify({'success': False, 'error': 'Текст и дата публикации обязательны'}), 400
         
         config = current_app.config['API_CONFIG']
-        vk_token = config['api_keys']['vk_access_token']
-        vk_group_id = config['api_keys']['vk_group_id']
+        vk_token = config['vk']['access_token']
+        vk_group_id = config['vk']['group_id']
         
         vk_publisher = VKPublisher(vk_token, vk_group_id)
         
@@ -199,8 +203,8 @@ def get_vk_post_stats(post_id):
         group_id = request.args.get('group_id')
         
         config = current_app.config['API_CONFIG']
-        vk_token = config['api_keys']['vk_access_token']
-        vk_group_id = config['api_keys']['vk_group_id']
+        vk_token = config['vk']['access_token']
+        vk_group_id = config['vk']['group_id']
         
         # Используем группу из конфига, игнорируем переданный group_id
         vk_publisher = VKPublisher(vk_token, vk_group_id)
@@ -261,7 +265,7 @@ def check_vk_token():
     """Проверить валидность VK токена"""
     try:
         config = current_app.config['API_CONFIG']
-        vk_token = config['api_keys']['vk_access_token']
+        vk_token = config['vk']['access_token']
         
         vk_publisher = VKPublisher(vk_token)
         result = vk_publisher.check_token()
@@ -285,8 +289,8 @@ def get_vk_group_stats():
         stats_groups = request.args.get('stats_groups')
         
         config = current_app.config['API_CONFIG']
-        vk_token = config['api_keys']['vk_access_token']
-        vk_group_id = config['api_keys']['vk_group_id']
+        vk_token = config['vk']['access_token']
+        vk_group_id = config['vk']['group_id']
         
         vk_publisher = VKPublisher(vk_token, vk_group_id)
         stats = vk_publisher.get_group_stats(

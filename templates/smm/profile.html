@@ -81,7 +81,11 @@
 
 {% block scripts %}
 <script>
-document.getElementById('profileForm').addEventListener('submit', async function(e) {
+document.addEventListener('DOMContentLoaded', function() {
+    const profileForm = document.getElementById('profileForm');
+    if (!profileForm) return;
+    
+    profileForm.addEventListener('submit', async function(e) {
     e.preventDefault();
     
     const formData = new FormData(this);
@@ -114,6 +118,7 @@ document.getElementById('profileForm').addEventListener('submit', async function
         saveBtn.disabled = false;
         saveBtn.textContent = 'Сохранить настройки';
     }
+    });
 });
 </script>
 {% endblock %}

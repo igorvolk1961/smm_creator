@@ -1,9 +1,0 @@
-{
-  "api_keys": {
-    "deepseek": "your-deepseek-api-key-here",
-    "vk_access_token":"vk1.a.JImi3dLv9v3_IDqtMF4gJNZPd9-t4LlJcsPICB6icr19si3AbedFvMzAjFSBPfJ7neqPkfaFcQKSiZJK50dWHIIWiFAoRCGOfg3NegiGzDoPRaUZkaq2AxR23Zw-4KiL-f3RjTi_fWpgBGPnfPIwyo3-rteDnaxvI46g5rU3A_IonZiFstFVayJ_YDpuiSW6AUHAlxG_vQT92LF2RiChRA"
-  },
-  "api_urls": {
-    "deepseek": "https://api.deepseek.com"
-  }
-}

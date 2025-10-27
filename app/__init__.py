@@ -15,14 +15,20 @@ def create_app():
                 static_folder='../static',
                 static_url_path='/static')
     app.config['SECRET_KEY'] = 'your-secret-key-here'
-    # Определяем путь к базе данных в зависимости от окружения
+    # Определяем путь к базе данных (кросс-платформенное решение для Windows и Ubuntu)
     import os
-    if os.path.exists('instance'):
-        # Если папка instance существует, используем её
-        app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///instance/smm_app.db'
-    else:
-        # Иначе создаем в корне проекта
-        app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///smm_app.db'
+    instance_dir = 'instance'
+    
+    # Всегда создаем директорию instance (безопасно для Windows и Linux)
+    os.makedirs(instance_dir, exist_ok=True)
+    
+    # Используем абсолютный путь для кросс-платформенной совместимости
+    db_path = os.path.abspath(os.path.join(instance_dir, 'smm_app.db'))
+    # Форматируем путь для SQLite в зависимости от ОС
+    if os.name == 'nt':  # Windows
+        app.config['SQLALCHEMY_DATABASE_URI'] = f'sqlite:///{db_path.replace(os.sep, "/")}'
+    else:  # Linux/Unix
+        app.config['SQLALCHEMY_DATABASE_URI'] = f'sqlite:///{db_path}'
     app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
     # Инициализация расширений
@@ -44,24 +50,29 @@ def create_app():
         
         # Создаем базу данных и таблицы, если их нет
         try:
-            print(f"🗄️ Путь к базе данных: {app.config['SQLALCHEMY_DATABASE_URI']}")
-            print(f"📁 Текущая директория: {os.getcwd()}")
+            # Выводим логи только в основном процессе (избегаем дублирования в Flask debug mode)
+            is_main = os.environ.get('WERKZEUG_RUN_MAIN') == 'true'
+            if is_main or not app.debug:
+                print(f"🗄️ Путь к базе данных: {app.config['SQLALCHEMY_DATABASE_URI']}")
+                print(f"📁 Текущая директория: {os.getcwd()}")
             
             db.create_all()
-            print("✅ База данных инициализирована")
             
-            # Проверяем что таблицы созданы
-            inspector = db.inspect(db.engine)
-            tables = inspector.get_table_names()
-            print(f"📋 Созданные таблицы: {tables}")
-            
-            # Проверяем размер файла базы данных
-            db_path = app.config['SQLALCHEMY_DATABASE_URI'].replace('sqlite:///', '')
-            if os.path.exists(db_path):
-                size = os.path.getsize(db_path)
-                print(f"📊 Размер файла базы данных: {size} байт")
-            else:
-                print(f"⚠️ Файл базы данных не найден: {db_path}")
+            if is_main or not app.debug:
+                print("✅ База данных инициализирована")
+                
+                # Проверяем что таблицы созданы
+                inspector = db.inspect(db.engine)
+                tables = inspector.get_table_names()
+                print(f"📋 Созданные таблицы: {tables}")
+                
+                # Проверяем размер файла базы данных
+                db_path = os.path.abspath(os.path.join(instance_dir, 'smm_app.db'))
+                if os.path.exists(db_path):
+                    size = os.path.getsize(db_path)
+                    print(f"📊 Размер файла базы данных: {size} байт")
+                else:
+                    print(f"⚠️ Файл базы данных не найден: {db_path}")
             
         except Exception as e:
             print(f"⚠️ Ошибка инициализации базы данных: {e}")
